@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Environment, RoundedBox, useTexture } from '@react-three/drei'
+import { Environment, RoundedBox, useProgress, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 
 const navItems = [
@@ -85,6 +85,14 @@ const PROJECT_IMAGES = Array.from(
   { length: 15 },
   (_, i) => `/img/projects/project-${String(i + 1).padStart(2, '0')}.png`
 )
+PROJECT_IMAGES.forEach((url) => useTexture.preload(url))
+
+const INTRO_STAGGER = 0.03
+const INTRO_DURATION = 1.15
+function easeOutCubic(t) {
+  return 1 - (1 - t) ** 3
+}
+
 // 作品卡片放在盤旋的正中間：60 張的中央 15 張（索引 22–36）
 // 作品連結（對應 project-01 ~ project-10），點擊卡片時開新視窗；11 以後沒有連結
 const PROJECT_LINKS = [
@@ -255,7 +263,21 @@ function BackgroundShape({ activeSection }) {
   const pointer = useRef({ tx: 0, ty: 0, x: 0, y: 0 })
   const kenMorphRef = useRef(0)
   const gridMorphRef = useRef(0)
+  const introStartRef = useRef(-1)
   const { viewport, camera } = useThree()
+  const { active: loadingActive, progress, total } = useProgress()
+  const [assetsReady, setAssetsReady] = useState(false)
+
+  useEffect(() => {
+    if (assetsReady || total === 0 || loadingActive || progress < 100) return undefined
+    const timer = window.setTimeout(() => setAssetsReady(true), 200)
+    return () => window.clearTimeout(timer)
+  }, [assetsReady, loadingActive, progress, total])
+
+  useEffect(() => {
+    const fallback = window.setTimeout(() => setAssetsReady(true), 2800)
+    return () => window.clearTimeout(fallback)
+  }, [])
 
   // Canvas 設為 pointer-events: none，所以改由 window 取得滑鼠位置
   useEffect(() => {
@@ -278,7 +300,12 @@ function BackgroundShape({ activeSection }) {
         Math.sin(angle) * radius * 0.42,
         Math.sin(angle) * radius * 0.82
       )
-
+      const opposite = angle + Math.PI / 2
+      const entryPosition = new THREE.Vector3(
+        Math.cos(opposite) * radius * 1.35,
+        Math.sin(opposite) * radius * 0.42,
+        Math.sin(opposite) * radius * 0.82
+      )
       helper.position.copy(ringPosition)
       helper.quaternion.identity()
       helper.lookAt(0, 0, 0)
@@ -308,6 +335,7 @@ function BackgroundShape({ activeSection }) {
         isProject,
         projectIndex,
         ringPosition,
+        entryPosition,
         ringQuaternion,
         scatterPosition,
         kenPosition: inKen
@@ -396,19 +424,33 @@ function BackgroundShape({ activeSection }) {
     p.x = THREE.MathUtils.damp(p.x, p.tx, 4, delta)
     p.y = THREE.MathUtils.damp(p.y, p.ty, 4, delta)
 
+    if (assetsReady && introStartRef.current < 0) {
+      introStartRef.current = state.clock.elapsedTime
+    }
+    const introElapsed = introStartRef.current < 0 ? -1 : state.clock.elapsedTime - introStartRef.current
+    const introSpin = introElapsed < 0
+      ? 0
+      : easeOutCubic(
+          THREE.MathUtils.clamp(
+            (introElapsed - INTRO_STAGGER * (RING_COUNT - 1)) / INTRO_DURATION,
+            0,
+            1
+          )
+        )
+
     const autoTurn = state.clock.elapsedTime * STAIR_SPIN_SPEED
 
     // 旋轉：home 維持環狀，自動旋轉；portfolio 改成整體自轉樓梯
     ring.rotation.y = THREE.MathUtils.euclideanModulo(ring.rotation.y + Math.PI, Math.PI * 2) - Math.PI
     if (activeSection === 'home') {
-      ring.rotation.y += delta * 0.25
+      ring.rotation.y += delta * 0.25 * introSpin
     } else if (isWho || isPortfolio) {
       ring.rotation.y = THREE.MathUtils.damp(ring.rotation.y, 0, 4, delta)
     } else {
-      ring.rotation.y += delta * 0.18 * (1 - lock)
+      ring.rotation.y += delta * 0.18 * (1 - lock) * introSpin
     }
-    ring.rotation.x = Math.sin(state.clock.elapsedTime * 0.4) * 0.12 * (1 - lock)
-    ring.rotation.z = Math.cos(state.clock.elapsedTime * 0.35) * 0.08 * (1 - lock)
+    ring.rotation.x = Math.sin(state.clock.elapsedTime * 0.4) * 0.12 * (1 - lock) * introSpin
+    ring.rotation.z = Math.cos(state.clock.elapsedTime * 0.35) * 0.08 * (1 - lock) * introSpin
 
     const fit = Math.min(1, viewport.width / (KEN_TARGET_WIDTH + 0.8))
     const { lerp, clamp, smoothstep } = THREE.MathUtils
@@ -417,8 +459,14 @@ function BackgroundShape({ activeSection }) {
       const card = cardRefs.current[index]
       if (!card) return
 
-      // 注意：home 不再直接重設位置。kenMorph / gridMorph 會平滑降到 0，
-      // 卡片自然從 KEN / 樓梯內插回環上，返回時才有動畫。
+      const introRaw = introElapsed < 0
+        ? 0
+        : clamp((introElapsed - index * INTRO_STAGGER) / INTRO_DURATION, 0, 1)
+      const intro = easeOutCubic(introRaw)
+      const homeX = lerp(piece.entryPosition.x, piece.ringPosition.x, intro)
+      const homeY = lerp(piece.entryPosition.y, piece.ringPosition.y, intro)
+      const homeZ = lerp(piece.entryPosition.z, piece.ringPosition.z, intro)
+
       const stagger = (index / RING_COUNT) * 0.5
       const tk = smoothstep(clamp(kenMorph * 1.5 - stagger, 0, 1), 0, 1)
       const tg = smoothstep(clamp(gridMorph * 1.5 - stagger, 0, 1), 0, 1)
@@ -434,9 +482,9 @@ function BackgroundShape({ activeSection }) {
       const kenFit = piece.inKen ? fit : 1
       const kenCardScale = piece.inKen ? KEN_CARD_SCALE * fit : 1
 
-      let x = lerp(piece.ringPosition.x, piece.kenPosition.x * kenFit, tk)
-      let y = lerp(piece.ringPosition.y, piece.kenPosition.y * kenFit, tk)
-      let z = lerp(piece.ringPosition.z, piece.kenPosition.z, tk)
+      let x = lerp(homeX, piece.kenPosition.x * kenFit, tk)
+      let y = lerp(homeY, piece.kenPosition.y * kenFit, tk)
+      let z = lerp(homeZ, piece.kenPosition.z, tk)
       x = lerp(x, gridX, tg)
       y = lerp(y, gridY, tg)
       z = lerp(z, gridZ, tg)
@@ -462,8 +510,8 @@ function BackgroundShape({ activeSection }) {
       )
       card.quaternion.multiply(tmpQuat.setFromEuler(tmpEuler))
 
-      card.scale.setScalar(lerp(lerp(1, kenCardScale, tk), gridCardScale, tg))
-      card.visible = Math.hypot(x, y, z) < 30
+      card.scale.setScalar(lerp(lerp(intro, kenCardScale, tk), gridCardScale, tg))
+      card.visible = intro > 0.01 || tk > 0.01 || tg > 0.01
 
       if (piece.isProject) {
         const glass = glassRefs.current[index]
@@ -506,8 +554,9 @@ function BackgroundShape({ activeSection }) {
             ref={(el) => {
               cardRefs.current[piece.key] = el
             }}
-            position={piece.ringPosition}
+            position={piece.entryPosition}
             quaternion={piece.ringQuaternion}
+            scale={0}
           >
             <RoundedBox args={[2.2, 1.2, 0.11]} radius={0.05} smoothness={6} renderOrder={3}>
               <meshPhysicalMaterial
