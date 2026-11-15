@@ -144,8 +144,8 @@ function buildStair() {
 const STAIR_LAYOUT = buildStair()
 const STAIR_SLOT_BY_CARD = Array.from({ length: RING_COUNT }, (_, index) => STAIR_LAYOUT[index])
 
-const SCREEN_WIDTH = CARD_LENGTH - 0.16
-const SCREEN_HEIGHT = CARD_WIDTH - 0.16
+const SCREEN_WIDTH = CARD_LENGTH - 0.42
+const SCREEN_HEIGHT = CARD_WIDTH - 0.28
 const PARALLAX = 0.06 // 截圖層隨滑鼠移動的幅度
 const CARD_TILT_BY_POINTER = 0.12
 const WAVE_AMP = 0.42
@@ -167,8 +167,8 @@ function getFadeMap() {
   const data = ctx.createImageData(w, h)
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
-      const ex = Math.min(x, w - 1 - x) / (w * 0.28)
-      const ey = Math.min(y, h - 1 - y) / (h * 0.34)
+      const ex = Math.min(x, w - 1 - x) / (w * 0.18)
+      const ey = Math.min(y, h - 1 - y) / (h * 0.22)
       const v = THREE.MathUtils.smoothstep(Math.min(ex, ey, 1), 0, 1)
       const i = (y * w + x) * 4
       data.data[i] = data.data[i + 1] = data.data[i + 2] = Math.round(v * 255)
@@ -212,7 +212,7 @@ function ProjectScreen({ url, screenRef }) {
           <meshBasicMaterial
             map={texture}
             alphaMap={fade}
-            color="#7f93aa"
+            color="#9aa8b6"
             transparent
             opacity={0}
             depthWrite={false}
@@ -224,6 +224,7 @@ function ProjectScreen({ url, screenRef }) {
           <meshBasicMaterial
             map={texture}
             alphaMap={fade}
+            color="#c5ced6"
             transparent
             opacity={0}
             depthWrite={false}
@@ -238,7 +239,7 @@ function ProjectScreen({ url, screenRef }) {
           <meshBasicMaterial
             map={texture}
             alphaMap={fade}
-            color="#7f93aa"
+            color="#9aa8b6"
             transparent
             opacity={0}
             depthWrite={false}
@@ -250,6 +251,7 @@ function ProjectScreen({ url, screenRef }) {
           <meshBasicMaterial
             map={texture}
             alphaMap={fade}
+            color="#c5ced6"
             transparent
             opacity={0}
             depthWrite={false}
@@ -271,7 +273,7 @@ function BackgroundShape({ activeSection }) {
   const gridMorphRef = useRef(0)
   const waveMorphRef = useRef(0)
   const introStartRef = useRef(-1)
-  const { viewport, camera } = useThree()
+  const { viewport, camera, size } = useThree()
   const { active: loadingActive, progress, total } = useProgress()
   const [assetsReady, setAssetsReady] = useState(false)
 
@@ -491,7 +493,7 @@ function BackgroundShape({ activeSection }) {
 
       // 繞畫面中央的垂直中軸公轉：x / z 由角度決定，y 由上往下
       const theta = piece.stairRotate + autoTurn
-      const axisX = viewport.width >= 6 ? viewport.width * STAIR_AXIS_X_RATIO : 0
+      const axisX = size.width >= 768 ? viewport.width * STAIR_AXIS_X_RATIO : 0
       const gridX = axisX + Math.sin(theta) * piece.stairRadius
       const gridY = piece.stairY
       const gridZ = Math.cos(theta) * piece.stairRadius
@@ -539,10 +541,10 @@ function BackgroundShape({ activeSection }) {
       if (piece.isProject) {
         const glass = glassRefs.current[index]
         if (glass) {
-          glass.metalness = lerp(1, 0.15, tg)
-          glass.roughness = lerp(0.18, 0.05, tg)
+          glass.metalness = lerp(1, 0.62, tg)
+          glass.roughness = lerp(0.18, 0.12, tg)
           glass.opacity = 1
-          glass.emissiveIntensity = lerp(0.12, 0.03, tg)
+          glass.emissiveIntensity = lerp(0.12, 0.05, tg)
           glass.depthWrite = true
         }
 
@@ -849,6 +851,11 @@ function App() {
                 <div>
                   <p className="text-5xl font-semibold tracking-[-0.08em] text-white">20</p>
                   <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Years in Frontend</p>
+                </div>
+                <div className="h-px w-full bg-white/10" />
+                <div>
+                  <p className="text-5xl font-semibold tracking-[-0.08em] text-white">100+</p>
+                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Projects Delivered</p>
                 </div>
                 <div className="h-px w-full bg-white/10" />
                 <div>
