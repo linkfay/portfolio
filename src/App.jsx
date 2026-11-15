@@ -618,33 +618,24 @@ function BackgroundShape({ activeSection }) {
   )
 }
 
-function NavItem({ item, active, onClick, className = '' }) {
+function NavItem({ item, active, onClick }) {
   return (
     <button
       type="button"
       onClick={() => onClick(item.id)}
-      className={`relative px-4 py-2 text-[11px] font-medium tracking-[0.2em] uppercase transition-colors duration-200 sm:text-sm ${
-        active ? 'text-white' : 'text-white/60 hover:text-white'
-      } ${className}`}
+      className={active ? 'nav-item is-active' : 'nav-item'}
     >
       <span>{item.label}</span>
-      {active && <span className="absolute inset-x-2 -bottom-1 h-px bg-white" />}
     </button>
   )
 }
 
 function SectionIntro({ eyebrow, title, description }) {
   return (
-    <div className="mb-12 max-w-2xl">
-      <p className="mb-4 text-xs font-medium uppercase tracking-[0.32em] text-white/50">
-        {eyebrow}
-      </p>
-      <h2 className="text-4xl font-semibold tracking-[-0.06em] text-white md:text-5xl uppercase">
-        {title}
-      </h2>
-      {description && (
-        <p className="mt-4 text-base leading-7 text-white/70 md:text-lg">{description}</p>
-      )}
+    <div className="intro">
+      <p className="intro__eyebrow">{eyebrow}</p>
+      <h2 className="intro__title">{title}</h2>
+      {description && <p className="intro__text">{description}</p>}
     </div>
   )
 }
@@ -733,18 +724,18 @@ function App() {
   }
 
   return (
-    <div className="relative min-h-screen bg-black text-white antialiased">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[85rem] items-center justify-between gap-4 px-6 py-4 sm:px-6 md:px-10">
+    <div className="site">
+      <header className="site__header">
+        <div className="site__bar">
           <button
             type="button"
             onClick={() => handleScrollToSection('home')}
-            className="text-lg font-semibold uppercase tracking-[0.2em] text-white"
+            className="site__brand"
           >
             K.K
           </button>
 
-          <nav className="hidden items-center gap-1 whitespace-nowrap py-1 md:flex">
+          <nav className="site__nav">
             {navItems.map((item) => (
               <NavItem
                 key={item.id}
@@ -757,44 +748,29 @@ function App() {
 
           <button
             type="button"
-            className="relative flex h-10 w-10 items-center justify-center md:hidden"
+            className={menuOpen ? 'site__toggle is-open' : 'site__toggle'}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
             onClick={() => setMenuOpen((open) => !open)}
           >
-            <span
-              className={`absolute h-px w-5 bg-white transition duration-200 ${
-                menuOpen ? 'rotate-45' : '-translate-y-1.5'
-              }`}
-            />
-            <span
-              className={`absolute h-px w-5 bg-white transition duration-200 ${
-                menuOpen ? 'opacity-0' : ''
-              }`}
-            />
-            <span
-              className={`absolute h-px w-5 bg-white transition duration-200 ${
-                menuOpen ? '-rotate-45' : 'translate-y-1.5'
-              }`}
-            />
+            <span />
+            <span />
+            <span />
           </button>
         </div>
 
         <nav
           id="mobile-nav"
-          className={`absolute inset-x-0 top-full border-b border-white/10 bg-black/90 backdrop-blur-xl h-[calc(100vh-88px)] transition duration-200 md:hidden ${
-            menuOpen ? 'pointer-events-auto visible opacity-100' : 'pointer-events-none invisible opacity-0'
-          }`}
+          className={menuOpen ? 'site__drawer is-open' : 'site__drawer'}
         >
-          <div className="flex flex-col px-4 py-3">
+          <div className="site__drawer-list">
             {navItems.map((item) => (
               <NavItem
                 key={item.id}
                 item={item}
                 active={activeSection === item.id}
                 onClick={handleScrollToSection}
-                className="w-full px-2 py-4 text-left text-sm"
               />
             ))}
           </div>
@@ -803,64 +779,58 @@ function App() {
 
       <div
         aria-hidden="true"
-        className={`pointer-events-none fixed inset-0 z-[1] bg-black/30 transition-opacity duration-700 ${
-          activeSection === 'who-am-i' ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={activeSection === 'who-am-i' ? 'site__veil is-visible' : 'site__veil'}
       />
 
-      <main className="relative z-10">
+      <main className="site__main">
         <section
           id="home"
           ref={(el) => {
             sectionRefs.current.home = el
           }}
-          className="flex min-h-screen items-center px-6 pb-40 max-md:pt-10 md:px-10"
+          className="section home"
         >
-          <div className="mx-auto grid w-full max-w-7xl items-center gap-12 md:grid-cols-[1.3fr_0.7fr]">
+          <div className="section__inner home__grid">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.38em] text-white/45">
-                Hong Kong · Frontend · 20 Years
-              </p>
-              <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.08em] text-white md:text-7xl uppercase">
-                I build the sites agencies have to ship.
-              </h1>
-              <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">
+              <p className="home__kicker">Hong Kong · Frontend · 20 Years</p>
+              <h1 className="home__title">I build the sites agencies have to ship.</h1>
+              <p className="home__lead">
                 I’m Ken, a Hong Kong frontend developer. For twenty years I’ve worked inside digital agencies — including Mirum Agency — turning design into campaign sites, brand platforms, and interactive launches.
               </p>
-              <div className="mt-8 flex flex-wrap gap-4">
+              <div className="home__actions">
                 <button
                   type="button"
                   onClick={() => handleScrollToSection('portfolio')}
-                  className="rounded-md border border-white/20 bg-white px-6 py-3 text-sm font-medium uppercase tracking-[0.2em] text-black transition hover:bg-white/90"
+                  className="btn btn--solid"
                 >
                   View Work
                 </button>
                 <button
                   type="button"
                   onClick={() => handleScrollToSection('contact-me')}
-                  className="rounded-md border border-white/20 px-6 py-3 text-sm font-medium uppercase tracking-[0.2em] text-white transition hover:border-white/40 hover:bg-white/5"
+                  className="btn btn--ghost"
                 >
                   Get in Touch
                 </button>
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-8 shadow-[0_0_80px_rgba(255,255,255,0.04)] max-md:px-0">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Now</p>
-              <div className="mt-8 space-y-8">
+            <div className="home__stats">
+              <p className="home__label">Now</p>
+              <div className="home__list">
                 <div>
-                  <p className="text-5xl font-semibold tracking-[-0.08em] text-white">20</p>
-                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Years in Frontend</p>
+                  <p className="home__value">20</p>
+                  <p className="home__caption">Years in Frontend</p>
                 </div>
-                <div className="h-px w-full bg-white/10" />
+                <div className="home__rule" />
                 <div>
-                  <p className="text-5xl font-semibold tracking-[-0.08em] text-white">100+</p>
-                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Projects Delivered</p>
+                  <p className="home__value">100+</p>
+                  <p className="home__caption">Projects Delivered</p>
                 </div>
-                <div className="h-px w-full bg-white/10" />
+                <div className="home__rule" />
                 <div>
-                  <p className="text-3xl font-semibold tracking-[-0.06em] text-white">Open to roles</p>
-                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Hong Kong · Agency & In-house</p>
+                  <p className="home__value home__value--role">Open to roles</p>
+                  <p className="home__caption">Hong Kong · Agency & In-house</p>
                 </div>
               </div>
             </div>
@@ -872,31 +842,31 @@ function App() {
           ref={(el) => {
             sectionRefs.current['who-am-i'] = el
           }}
-          className="flex min-h-screen items-center px-6 py-24 md:px-10"
+          className="section who"
         >
-          <div className="mx-auto w-full max-w-7xl">
+          <div className="section__inner">
             <SectionIntro
               eyebrow="Who Am I"
               title="A frontend developer shaped by agency work."
               description="Based in Hong Kong. Twenty years of production work in digital agencies, including Mirum. I’m looking for the next frontend role — agency or in-house — where the page still has to be right."
             />
 
-            <div className="grid gap-8 md:grid-cols-3">
-              <div className="rounded-md border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Background</p>
-                <p className="mt-6 text-xl leading-8 text-white/80">
+            <div className="who__cards">
+              <div className="card">
+                <p className="card__label">Background</p>
+                <p className="card__text">
                   Campaign sites, brand platforms, and experiential pages. Built with design, account, and client teams, usually against a launch date.
                 </p>
               </div>
-              <div className="rounded-md border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Craft</p>
-                <p className="mt-6 text-xl leading-8 text-white/80">
+              <div className="card">
+                <p className="card__label">Craft</p>
+                <p className="card__text">
                   HTML, CSS, and JavaScript, taken through to a responsive build. Motion when it earns its place. Layouts that still match the design on the day it goes live.
                 </p>
               </div>
-              <div className="rounded-md border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Looking for</p>
-                <p className="mt-6 text-xl leading-8 text-white/80">
+              <div className="card">
+                <p className="card__label">Looking for</p>
+                <p className="card__text">
                   A team that cares about the front of the work: the interface, the interaction, and the details a user actually notices.
                 </p>
               </div>
@@ -909,16 +879,16 @@ function App() {
           ref={(el) => {
             sectionRefs.current.portfolio = el
           }}
-          className="min-h-[100vh] px-6 pt-24 md:px-10"
+          className="section portfolio"
         >
-          <div className="mx-auto w-full max-w-7xl">
+          <div className="section__inner">
             <SectionIntro
               eyebrow="Portfolio"
               title="Selected work from agency launches."
               description="Sites and campaigns across destination, aviation, automotive, and brand experiences. Scroll the staircase — project cards open the live work."
             />
 
-            <div aria-hidden="true" className="h-[40vh] md:hidden" />
+            <div aria-hidden="true" className="portfolio__spacer" />
           </div>
         </section>
 
@@ -927,26 +897,24 @@ function App() {
           ref={(el) => {
             sectionRefs.current['contact-me'] = el
           }}
-          className="flex min-h-screen items-center px-6 py-24 md:px-10"
+          className="section contact"
         >
-          <div className="mx-auto w-full max-w-7xl rounded-lg border border-white/10 bg-white/[0.03] p-8 md:p-12">
+          <div className="section__inner contact__panel">
             <SectionIntro
               eyebrow="Contact Me"
               title="Open to a frontend role in Hong Kong."
               description="If you’re hiring a frontend developer who has spent twenty years shipping agency work, I’d like to talk."
             />
 
-            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="contact__row">
               <div>
-                <p className="text-base font-normal tracking-[-0.04em] text-white md:text-xl">
-                  linkfay@gmail.com
-                </p>
-                <p className="mt-3 text-white/60">Hong Kong · Frontend · Agency & in-house</p>
+                <p className="contact__mail">linkfay@gmail.com</p>
+                <p className="contact__note">Hong Kong · Frontend · Agency & in-house</p>
               </div>
 
               <a
                 href="mailto:linkfay@gmail.com?subject=Frontend%20role"
-                className="inline-flex items-center justify-center rounded-md border border-white/20 bg-white px-6 py-3 text-sm font-medium uppercase tracking-[0.2em] text-black transition hover:bg-white/90"
+                className="btn btn--solid"
               >
                 Email Me
               </a>
@@ -956,17 +924,9 @@ function App() {
       </main>
 
       <Canvas
+        className="site__canvas"
         camera={{ position: [0, 0, 4.5], fov: 45 }}
         gl={{ antialias: true, alpha: true }}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 0,
-          pointerEvents: 'none',
-          background: 'transparent',
-        }}
       >
         <BackgroundShape activeSection={activeSection} />
       </Canvas>
