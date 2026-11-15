@@ -517,7 +517,7 @@ function BackgroundShape({ activeSection }) {
       tmpWaveQuat.setFromEuler(tmpWaveEuler.set(0, Math.PI / 2, 0))
       card.quaternion.slerp(tmpWaveQuat, tw)
 
-      const settle = Math.min(1, tg)
+      const settle = Math.min(1, tk * (1 - tg) * (1 - tw) + tg * (1 - tw))
       const time = state.clock.elapsedTime * piece.speed + piece.phase
       x += Math.sin(time * 0.9) * FLOAT_XY * settle
       y += Math.cos(time * 1.1) * FLOAT_XY * settle
@@ -616,14 +616,14 @@ function BackgroundShape({ activeSection }) {
   )
 }
 
-function NavItem({ item, active, onClick }) {
+function NavItem({ item, active, onClick, className = '' }) {
   return (
     <button
       type="button"
       onClick={() => onClick(item.id)}
       className={`relative px-4 py-2 text-[11px] font-medium tracking-[0.2em] uppercase transition-colors duration-200 sm:text-sm ${
         active ? 'text-white' : 'text-white/60 hover:text-white'
-      }`}
+      } ${className}`}
     >
       <span>{item.label}</span>
       {active && <span className="absolute inset-x-2 -bottom-1 h-px bg-white" />}
@@ -649,7 +649,30 @@ function SectionIntro({ eyebrow, title, description }) {
 
 function App() {
   const [activeSection, setActiveSection] = useState('home')
+  const [menuOpen, setMenuOpen] = useState(false)
   const sectionRefs = useRef({})
+
+  useEffect(() => {
+    const closeOnDesktop = () => {
+      if (window.innerWidth >= 768) setMenuOpen(false)
+    }
+    window.addEventListener('resize', closeOnDesktop)
+    return () => window.removeEventListener('resize', closeOnDesktop)
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const close = () => setMenuOpen(false)
+    const onKey = (event) => {
+      if (event.key === 'Escape') close()
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, { passive: true })
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close)
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     const updateActiveSectionByScroll = () => {
@@ -697,6 +720,7 @@ function App() {
   }, [])
 
   const handleScrollToSection = (id) => {
+    setMenuOpen(false)
     const target = sectionRefs.current[id]
     if (!target) return
 
@@ -709,16 +733,16 @@ function App() {
   return (
     <div className="relative min-h-screen bg-black text-white antialiased">
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 md:px-10">
+        <div className="mx-auto flex max-w-[85rem] items-center justify-between gap-4 px-6 py-4 sm:px-6 md:px-10">
           <button
             type="button"
             onClick={() => handleScrollToSection('home')}
             className="text-lg font-semibold uppercase tracking-[0.2em] text-white"
           >
-            K.
+            K.K
           </button>
 
-          <nav className="flex items-center gap-1 overflow-x-auto whitespace-nowrap py-1">
+          <nav className="hidden items-center gap-1 whitespace-nowrap py-1 md:flex">
             {navItems.map((item) => (
               <NavItem
                 key={item.id}
@@ -728,8 +752,59 @@ function App() {
               />
             ))}
           </nav>
+
+          <button
+            type="button"
+            className="relative flex h-10 w-10 items-center justify-center md:hidden"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span
+              className={`absolute h-px w-5 bg-white transition duration-200 ${
+                menuOpen ? 'rotate-45' : '-translate-y-1.5'
+              }`}
+            />
+            <span
+              className={`absolute h-px w-5 bg-white transition duration-200 ${
+                menuOpen ? 'opacity-0' : ''
+              }`}
+            />
+            <span
+              className={`absolute h-px w-5 bg-white transition duration-200 ${
+                menuOpen ? '-rotate-45' : 'translate-y-1.5'
+              }`}
+            />
+          </button>
         </div>
+
+        <nav
+          id="mobile-nav"
+          className={`absolute inset-x-0 top-full border-b border-white/10 bg-black/90 backdrop-blur-xl h-[calc(100vh-88px)] transition duration-200 md:hidden ${
+            menuOpen ? 'pointer-events-auto visible opacity-100' : 'pointer-events-none invisible opacity-0'
+          }`}
+        >
+          <div className="flex flex-col px-4 py-3">
+            {navItems.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                active={activeSection === item.id}
+                onClick={handleScrollToSection}
+                className="w-full px-2 py-4 text-left text-sm"
+              />
+            ))}
+          </div>
+        </nav>
       </header>
+
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-0 z-[1] bg-black/30 transition-opacity duration-700 ${
+          activeSection === 'who-am-i' ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
 
       <main className="relative z-10">
         <section
@@ -737,18 +812,18 @@ function App() {
           ref={(el) => {
             sectionRefs.current.home = el
           }}
-          className="flex min-h-screen items-center px-6 py-20 md:px-10"
+          className="flex min-h-screen items-center px-6 pb-40 max-md:pt-10 md:px-10"
         >
           <div className="mx-auto grid w-full max-w-7xl items-center gap-12 md:grid-cols-[1.3fr_0.7fr]">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.38em] text-white/45">
-                Design • Strategy • Storytelling
+                Hong Kong · Frontend · 20 Years
               </p>
               <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.08em] text-white md:text-7xl uppercase">
-                I build calm, bold digital experiences.
+                I build the sites agencies have to ship.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">
-                I’m a multidisciplinary designer focused on meaningful brands, thoughtful interfaces, and launch-ready creative direction.
+                I’m Ken, a Hong Kong frontend developer. For twenty years I’ve worked inside digital agencies — including Mirum Agency — turning design into campaign sites, brand platforms, and interactive launches.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
                 <button
@@ -763,22 +838,22 @@ function App() {
                   onClick={() => handleScrollToSection('contact-me')}
                   className="rounded-md border border-white/20 px-6 py-3 text-sm font-medium uppercase tracking-[0.2em] text-white transition hover:border-white/40 hover:bg-white/5"
                 >
-                  Let’s Talk
+                  Get in Touch
                 </button>
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-8 shadow-[0_0_80px_rgba(255,255,255,0.04)]">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Currently</p>
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-8 shadow-[0_0_80px_rgba(255,255,255,0.04)] max-md:px-0">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50">Now</p>
               <div className="mt-8 space-y-8">
                 <div>
-                  <p className="text-5xl font-semibold tracking-[-0.08em] text-white">6+</p>
-                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Years Experience</p>
+                  <p className="text-5xl font-semibold tracking-[-0.08em] text-white">20</p>
+                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Years in Frontend</p>
                 </div>
                 <div className="h-px w-full bg-white/10" />
                 <div>
-                  <p className="text-5xl font-semibold tracking-[-0.08em] text-white">24</p>
-                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Projects Shipped</p>
+                  <p className="text-3xl font-semibold tracking-[-0.06em] text-white">Open to roles</p>
+                  <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/55">Hong Kong · Agency & In-house</p>
                 </div>
               </div>
             </div>
@@ -795,27 +870,27 @@ function App() {
           <div className="mx-auto w-full max-w-7xl">
             <SectionIntro
               eyebrow="Who Am I"
-              title="I turn complex ideas into clear, memorable experiences."
-              description="I work across branding, product design, and art direction to help companies communicate with confidence and build trust with their audience."
+              title="A frontend developer shaped by agency work."
+              description="Based in Hong Kong. Twenty years of production work in digital agencies, including Mirum. I’m looking for the next frontend role — agency or in-house — where the page still has to be right."
             />
 
             <div className="grid gap-8 md:grid-cols-3">
               <div className="rounded-md border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Approach</p>
+                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Background</p>
                 <p className="mt-6 text-xl leading-8 text-white/80">
-                  Strategic thinking with a strong eye for clarity, emotion, and usability.
+                  Campaign sites, brand platforms, and experiential pages. Built with design, account, and client teams, usually against a launch date.
                 </p>
               </div>
               <div className="rounded-md border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Focus</p>
+                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Craft</p>
                 <p className="mt-6 text-xl leading-8 text-white/80">
-                  Brand systems, landing pages, product stories, and polished visual communication.
+                  HTML, CSS, and JavaScript, taken through to a responsive build. Motion when it earns its place. Layouts that still match the design on the day it goes live.
                 </p>
               </div>
               <div className="rounded-md border border-white/10 bg-white/[0.03] p-6">
-                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Value</p>
+                <p className="text-sm uppercase tracking-[0.3em] text-white/50">Looking for</p>
                 <p className="mt-6 text-xl leading-8 text-white/80">
-                  Simpler decisions, better positioning, and experiences that feel premium and intuitive.
+                  A team that cares about the front of the work: the interface, the interaction, and the details a user actually notices.
                 </p>
               </div>
             </div>
@@ -832,8 +907,8 @@ function App() {
           <div className="mx-auto w-full max-w-7xl">
             <SectionIntro
               eyebrow="Portfolio"
-              title="Selected work shaped around clarity and impact."
-              description="A collection of design systems, digital launches, and brand experiences built to move both attention and action."
+              title="Selected work from agency launches."
+              description="Sites and campaigns across destination, aviation, automotive, and brand experiences. Scroll the staircase — project cards open the live work."
             />
 
             <div aria-hidden="true" className="h-[40vh] md:hidden" />
@@ -847,11 +922,11 @@ function App() {
           }}
           className="flex min-h-screen items-center px-6 py-24 md:px-10"
         >
-          <div className="mx-auto w-full max-w-5xl rounded-lg border border-white/10 bg-white/[0.03] p-8 md:p-12">
+          <div className="mx-auto w-full max-w-7xl rounded-lg border border-white/10 bg-white/[0.03] p-8 md:p-12">
             <SectionIntro
               eyebrow="Contact Me"
-              title="Available for new projects, collaborations, and conversations."
-              description="If you’re building something thoughtful and want creative support from strategy to delivery, let’s connect."
+              title="Open to a frontend role in Hong Kong."
+              description="If you’re hiring a frontend developer who has spent twenty years shipping agency work, I’d like to talk."
             />
 
             <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -859,11 +934,11 @@ function App() {
                 <p className="text-base font-normal tracking-[-0.04em] text-white md:text-xl">
                   linkfay@gmail.com
                 </p>
-                {/* <p className="mt-3 text-white/60">Based in Taipei · Open for remote work</p> */}
+                <p className="mt-3 text-white/60">Hong Kong · Frontend · Agency & in-house</p>
               </div>
 
               <a
-                href="mailto:linkfay@gmail.com"
+                href="mailto:linkfay@gmail.com?subject=Frontend%20role"
                 className="inline-flex items-center justify-center rounded-md border border-white/20 bg-white px-6 py-3 text-sm font-medium uppercase tracking-[0.2em] text-black transition hover:bg-white/90"
               >
                 Email Me
