@@ -120,6 +120,7 @@ const STAIR_DY = 0.1 // 每張卡片往下的垂直間距；一圈 6 張，每�
 const STAIR_AXIS_X_RATIO = 0.2 // 中軸往右偏移（佔視窗寬度比例）
 const STAIR_SPIN_SPEED = 0.2 // 整組繞中軸的速度
 const CAM_BASE_POSITION = new THREE.Vector3(0, 0, 4.5) // 預設鏡頭位置（與 Canvas camera 一致）
+const CAM_CONTACT_Z = CAM_BASE_POSITION.z * 0.5 // Contact Me 拉近一倍
 const CAM_LOW_Y = -1.1 // Portfolio 時鏡頭降低的高度
 const CAM_LOOK_Y = 0.6 // Portfolio 時鏡頭看向的高度（高於鏡頭即為仰拍）
 const camLook = new THREE.Vector3()
@@ -147,6 +148,11 @@ const SCREEN_WIDTH = CARD_LENGTH - 0.16
 const SCREEN_HEIGHT = CARD_WIDTH - 0.16
 const PARALLAX = 0.06 // 截圖層隨滑鼠移動的幅度
 const CARD_TILT_BY_POINTER = 0.12
+const WAVE_AMP = 0.42
+const WAVE_SPEED = 1.5
+const WAVE_SCALE = 0.2
+const tmpWaveEuler = new THREE.Euler()
+const tmpWaveQuat = new THREE.Quaternion()
 
 // 邊緣柔和淡出的遮罩，讓截圖融入卡片而不是硬邊貼圖
 let fadeMap = null
@@ -263,6 +269,7 @@ function BackgroundShape({ activeSection }) {
   const pointer = useRef({ tx: 0, ty: 0, x: 0, y: 0 })
   const kenMorphRef = useRef(0)
   const gridMorphRef = useRef(0)
+  const waveMorphRef = useRef(0)
   const introStartRef = useRef(-1)
   const { viewport, camera } = useThree()
   const { active: loadingActive, progress, total } = useProgress()
@@ -405,17 +412,20 @@ function BackgroundShape({ activeSection }) {
 
     const isWho = activeSection === 'who-am-i'
     const isPortfolio = activeSection === 'portfolio'
+    const isContact = activeSection === 'contact-me'
     kenMorphRef.current = THREE.MathUtils.damp(kenMorphRef.current, isWho ? 1 : 0, 2.5, delta)
     gridMorphRef.current = THREE.MathUtils.damp(gridMorphRef.current, isPortfolio ? 1 : 0, 2.5, delta)
+    waveMorphRef.current = THREE.MathUtils.damp(waveMorphRef.current, isContact ? 1 : 0, 2.5, delta)
     const kenMorph = kenMorphRef.current
     const gridMorph = gridMorphRef.current
-    const lock = Math.min(1, kenMorph + gridMorph)
+    const waveMorph = waveMorphRef.current
+    const lock = Math.min(1, kenMorph + gridMorph + waveMorph)
 
     // Portfolio：鏡頭降低、看向較高處，形成由下向上拍
     state.camera.position.set(
       CAM_BASE_POSITION.x,
       THREE.MathUtils.lerp(CAM_BASE_POSITION.y, CAM_LOW_Y, gridMorph),
-      CAM_BASE_POSITION.z
+      THREE.MathUtils.lerp(CAM_BASE_POSITION.z, CAM_CONTACT_Z, waveMorph)
     )
     camLook.set(0, THREE.MathUtils.lerp(0, CAM_LOOK_Y, gridMorph), 0)
     state.camera.lookAt(camLook)
@@ -444,7 +454,7 @@ function BackgroundShape({ activeSection }) {
     ring.rotation.y = THREE.MathUtils.euclideanModulo(ring.rotation.y + Math.PI, Math.PI * 2) - Math.PI
     if (activeSection === 'home') {
       ring.rotation.y += delta * 0.25 * introSpin
-    } else if (isWho || isPortfolio) {
+    } else if (isWho || isPortfolio || isContact) {
       ring.rotation.y = THREE.MathUtils.damp(ring.rotation.y, 0, 4, delta)
     } else {
       ring.rotation.y += delta * 0.18 * (1 - lock) * introSpin
@@ -470,6 +480,14 @@ function BackgroundShape({ activeSection }) {
       const stagger = (index / RING_COUNT) * 0.5
       const tk = smoothstep(clamp(kenMorph * 1.5 - stagger, 0, 1), 0, 1)
       const tg = smoothstep(clamp(gridMorph * 1.5 - stagger, 0, 1), 0, 1)
+      const tw = smoothstep(clamp(waveMorph * 1.5 - stagger, 0, 1), 0, 1)
+
+      const along = index / (RING_COUNT - 1)
+      const phase = along * Math.PI * 4 - state.clock.elapsedTime * WAVE_SPEED
+      const baseSpan = 2 * Math.tan(THREE.MathUtils.degToRad(state.camera.fov) / 2) * CAM_BASE_POSITION.z * state.camera.aspect
+      const waveX = (along - 0.5) * baseSpan * 0.92
+      const waveY = Math.sin(phase) * WAVE_AMP
+      const waveZ = 0
 
       // 繞畫面中央的垂直中軸公轉：x / z 由角度決定，y 由上往下
       const theta = piece.stairRotate + autoTurn
@@ -488,11 +506,16 @@ function BackgroundShape({ activeSection }) {
       x = lerp(x, gridX, tg)
       y = lerp(y, gridY, tg)
       z = lerp(z, gridZ, tg)
+      x = lerp(x, waveX, tw)
+      y = lerp(y, waveY, tw)
+      z = lerp(z, waveZ, tw)
 
       // 卡片不自轉：正面（+Z）一律朝向中軸，隨公轉角度同步轉動
       tmpFaceQuat.setFromEuler(tmpFaceEuler.set(0, theta + Math.PI, 0))
       card.quaternion.slerpQuaternions(piece.ringQuaternion, piece.kenQuaternion, tk)
       card.quaternion.slerp(tmpFaceQuat, tg)
+      tmpWaveQuat.setFromEuler(tmpWaveEuler.set(0, Math.PI / 2, 0))
+      card.quaternion.slerp(tmpWaveQuat, tw)
 
       const settle = Math.min(1, tg)
       const time = state.clock.elapsedTime * piece.speed + piece.phase
@@ -510,8 +533,8 @@ function BackgroundShape({ activeSection }) {
       )
       card.quaternion.multiply(tmpQuat.setFromEuler(tmpEuler))
 
-      card.scale.setScalar(lerp(lerp(intro, kenCardScale, tk), gridCardScale, tg))
-      card.visible = intro > 0.01 || tk > 0.01 || tg > 0.01
+      card.scale.setScalar(lerp(lerp(lerp(intro, kenCardScale, tk), gridCardScale, tg), WAVE_SCALE, tw))
+      card.visible = intro > 0.01 || tk > 0.01 || tg > 0.01 || tw > 0.01
 
       if (piece.isProject) {
         const glass = glassRefs.current[index]
@@ -614,7 +637,7 @@ function SectionIntro({ eyebrow, title, description }) {
       <p className="mb-4 text-xs font-medium uppercase tracking-[0.32em] text-white/50">
         {eyebrow}
       </p>
-      <h2 className="text-4xl font-semibold tracking-[-0.06em] text-white md:text-5xl">
+      <h2 className="text-4xl font-semibold tracking-[-0.06em] text-white md:text-5xl uppercase">
         {title}
       </h2>
       {description && (
@@ -721,7 +744,7 @@ function App() {
               <p className="text-xs font-medium uppercase tracking-[0.38em] text-white/45">
                 Design • Strategy • Storytelling
               </p>
-              <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.08em] text-white md:text-7xl">
+              <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.08em] text-white md:text-7xl uppercase">
                 I build calm, bold digital experiences.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">
@@ -833,14 +856,14 @@ function App() {
 
             <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="text-2xl font-medium tracking-[-0.04em] text-white md:text-3xl">
-                  hello@yourportfolio.com
+                <p className="text-base font-normal tracking-[-0.04em] text-white md:text-xl">
+                  linkfay@gmail.com
                 </p>
-                <p className="mt-3 text-white/60">Based in Taipei · Open for remote work</p>
+                {/* <p className="mt-3 text-white/60">Based in Taipei · Open for remote work</p> */}
               </div>
 
               <a
-                href="mailto:hello@yourportfolio.com"
+                href="mailto:linkfay@gmail.com"
                 className="inline-flex items-center justify-center rounded-md border border-white/20 bg-white px-6 py-3 text-sm font-medium uppercase tracking-[0.2em] text-black transition hover:bg-white/90"
               >
                 Email Me
