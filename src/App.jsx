@@ -80,9 +80,9 @@ const tmpQuat = new THREE.Quaternion()
 const tmpFaceEuler = new THREE.Euler()
 const tmpFaceQuat = new THREE.Quaternion()
 
-// 作品截圖（15 張），對應 public/img/projects
+// 作品截圖（27 張），對應 public/img/projects
 const PROJECT_IMAGES = Array.from(
-  { length: 15 },
+  { length: 27 },
   (_, i) => `/img/projects/project-${String(i + 1).padStart(2, '0')}.png`
 )
 PROJECT_IMAGES.forEach((url) => useTexture.preload(url))
@@ -93,7 +93,7 @@ function easeOutCubic(t) {
   return 1 - (1 - t) ** 3
 }
 
-// 作品卡片放在盤旋的正中間：60 張的中央 15 張（索引 22–36）
+// 作品卡片放在盤旋的正中間，依張數置中
 // 作品連結（對應 project-01 ~ project-10），點擊卡片時開新視窗；11 以後沒有連結
 const PROJECT_LINKS = [
   'https://www.skytopiahk.com/en',
@@ -107,10 +107,6 @@ const PROJECT_LINKS = [
   'https://hkracing-museum-ar.com/en/desktop',
   'https://master.df8ei5w74q1xh.amplifyapp.com/tv/hero-product/',
 ]
-const PROJECT_CARD_INDEXES = Array.from(
-  { length: PROJECT_IMAGES.length },
-  (_, i) => Math.floor((RING_COUNT - PROJECT_IMAGES.length) / 2) + i
-)
 
 // Portfolio 自轉樓梯：中軸偏右，卡片由上往下旋轉堆疊，Z 逐層增加，角度依序 +20°
 // 中軸在畫面正中央（x = 0），卡片離中軸固定半徑，繞軸公轉；卡片本身不自轉
@@ -126,6 +122,22 @@ const CAM_LOOK_Y = 0.6 // Portfolio 時鏡頭看向的高度（高於鏡頭即�
 const camLook = new THREE.Vector3()
 const STAIR_ROTATE_STEP = (38 * Math.PI) / 180 // 每張卡片的角度增量（需足夠大，同圈卡片才不會重疊）
 
+// 01–10 對準鏡頭看向的高度；11 以後分放這一段的上下兩側
+const STAIR_MID_INDEX = (RING_COUNT - 1) / 2 - CAM_LOOK_Y / STAIR_DY
+const FEATURED_COUNT = Math.min(PROJECT_LINKS.length, PROJECT_IMAGES.length)
+const featuredStart = Math.round(STAIR_MID_INDEX - (FEATURED_COUNT - 1) / 2)
+const restCount = PROJECT_IMAGES.length - FEATURED_COUNT
+const aboveCount = Math.floor(restCount / 2)
+const PROJECT_CARD_INDEXES = [
+  ...Array.from({ length: FEATURED_COUNT }, (_, i) => featuredStart + i),
+  ...Array.from({ length: aboveCount }, (_, i) => featuredStart - aboveCount + i),
+  ...Array.from(
+    { length: restCount - aboveCount },
+    (_, i) => featuredStart + FEATURED_COUNT + i
+  ),
+]
+
+// 建立樓梯排版
 function buildStair() {
   const slots = []
   for (let index = 0; index < RING_COUNT; index += 1) {
